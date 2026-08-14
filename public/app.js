@@ -1,3 +1,36 @@
+const VOICE_OPTIONS = [
+  ["Kore", "Kore - Firm"],
+  ["Puck", "Puck - Upbeat"],
+  ["Zephyr", "Zephyr - Bright"],
+  ["Charon", "Charon - Informative"],
+  ["Fenrir", "Fenrir - Excitable"],
+  ["Leda", "Leda - Youthful"],
+  ["Orus", "Orus - Firm"],
+  ["Aoede", "Aoede - Breezy"],
+  ["Callirrhoe", "Callirrhoe - Easy-going"],
+  ["Autonoe", "Autonoe - Bright"],
+  ["Enceladus", "Enceladus - Breathy"],
+  ["Iapetus", "Iapetus - Clear"],
+  ["Umbriel", "Umbriel - Easy-going"],
+  ["Algieba", "Algieba - Smooth"],
+  ["Despina", "Despina - Smooth"],
+  ["Erinome", "Erinome - Clear"],
+  ["Algenib", "Algenib - Gravelly"],
+  ["Rasalgethi", "Rasalgethi - Informative"],
+  ["Laomedeia", "Laomedeia - Upbeat"],
+  ["Achernar", "Achernar - Soft"],
+  ["Alnilam", "Alnilam - Firm"],
+  ["Schedar", "Schedar - Even"],
+  ["Gacrux", "Gacrux - Mature"],
+  ["Pulcherrima", "Pulcherrima - Forward"],
+  ["Achird", "Achird - Friendly"],
+  ["Zubenelgenubi", "Zubenelgenubi - Casual"],
+  ["Vindemiatrix", "Vindemiatrix - Gentle"],
+  ["Sadachbia", "Sadachbia - Lively"],
+  ["Sadaltager", "Sadaltager - Knowledgeable"],
+  ["Sulafat", "Sulafat - Warm"],
+];
+
 const state = {
   socket: null,
   sessionLive: false,
@@ -18,7 +51,6 @@ const state = {
 const elements = {
   connectButton: document.querySelector("#connectButton"),
   disconnectButton: document.querySelector("#disconnectButton"),
-  cameraToggle: document.querySelector("#cameraToggle"),
   cameraEnabled: document.querySelector("#cameraEnabled"),
   micEnabled: document.querySelector("#micEnabled"),
   searchEnabled: document.querySelector("#searchEnabled"),
@@ -33,6 +65,7 @@ const elements = {
   statusDot: document.querySelector("#statusDot"),
   tokenCounter: document.querySelector("#tokenCounter"),
   modelBadge: document.querySelector("#modelBadge"),
+  cameraStateBadge: document.querySelector("#cameraStateBadge"),
 };
 
 boot().catch((error) => {
@@ -44,7 +77,7 @@ async function boot() {
   const response = await fetch("/api/config");
   state.config = await response.json();
 
-  elements.voiceName.value = state.config.defaultVoiceName || "Kore";
+  buildVoiceOptions(state.config.defaultVoiceName || "Kore");
   elements.searchEnabled.checked = state.config.defaultGoogleSearch ?? true;
   elements.modelBadge.textContent = state.config.model || "Gemini Live";
 
@@ -63,14 +96,8 @@ async function boot() {
     void stopSession("ユーザーが終了しました。");
   });
 
-  elements.cameraToggle.addEventListener("click", () => {
-    elements.cameraEnabled.checked = !elements.cameraEnabled.checked;
-    syncCameraToggleLabel();
-    void applyCameraState();
-  });
-
   elements.cameraEnabled.addEventListener("change", () => {
-    syncCameraToggleLabel();
+    syncCameraStateBadge();
     void applyCameraState();
   });
 
@@ -89,7 +116,27 @@ async function boot() {
     }
   });
 
-  syncCameraToggleLabel();
+  syncCameraStateBadge();
+}
+
+function buildVoiceOptions(defaultVoiceName) {
+  elements.voiceName.innerHTML = "";
+
+  for (const [value, label] of VOICE_OPTIONS) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    elements.voiceName.append(option);
+  }
+
+  if (!VOICE_OPTIONS.some(([value]) => value === defaultVoiceName)) {
+    const option = document.createElement("option");
+    option.value = defaultVoiceName;
+    option.textContent = `${defaultVoiceName} - Custom`;
+    elements.voiceName.prepend(option);
+  }
+
+  elements.voiceName.value = defaultVoiceName;
 }
 
 async function startSession() {
@@ -128,7 +175,7 @@ function openSocket() {
       cameraEnabled: elements.cameraEnabled.checked,
       micEnabled: elements.micEnabled.checked,
       googleSearchEnabled: elements.searchEnabled.checked,
-      voiceName: elements.voiceName.value.trim() || "Kore",
+      voiceName: elements.voiceName.value,
     });
   });
 
@@ -218,6 +265,7 @@ async function applyCameraState() {
 
 async function startCamera() {
   if (state.cameraStream) {
+    syncCameraStateBadge();
     return;
   }
 
@@ -244,9 +292,11 @@ async function startCamera() {
         sendVideoFrame();
       }
     }, 1500);
+
+    syncCameraStateBadge();
   } catch (error) {
     elements.cameraEnabled.checked = false;
-    syncCameraToggleLabel();
+    syncCameraStateBadge();
     appendMessage("system", `カメラを開始できませんでした: ${error.message}`);
   }
 }
@@ -262,6 +312,7 @@ function stopCamera() {
   elements.cameraPreview.srcObject = null;
   elements.cameraPreview.style.display = "none";
   elements.cameraFallback.style.display = "grid";
+  syncCameraStateBadge();
 }
 
 function sendVideoFrame() {
@@ -466,8 +517,8 @@ function setStatus(text, tone) {
   elements.statusDot.className = `status-dot ${tone}`;
 }
 
-function syncCameraToggleLabel() {
-  elements.cameraToggle.textContent = elements.cameraEnabled.checked ? "CAMERA ON" : "CAMERA OFF";
+function syncCameraStateBadge() {
+  elements.cameraStateBadge.textContent = elements.cameraEnabled.checked ? "Camera On" : "Camera Off";
 }
 
 async function requestWakeLock() {
