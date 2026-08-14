@@ -45,8 +45,7 @@ select {
 
 .hero {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
   align-items: center;
   padding: 6px 4px 24px;
 }
@@ -76,11 +75,27 @@ h1 {
   letter-spacing: -0.06em;
 }
 
+.session-headline {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.session-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .hero-status {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.52);
@@ -109,7 +124,7 @@ h1 {
 
 .grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.9fr;
+  grid-template-columns: 0.9fr 1.2fr;
   gap: 18px;
 }
 
@@ -128,6 +143,10 @@ h1 {
 
 .transcript-panel {
   grid-column: 1 / -1;
+}
+
+.transcript-panel.is-hidden {
+  display: none;
 }
 
 .panel-head {
@@ -186,6 +205,10 @@ h1 {
 .button-row {
   display: flex;
   gap: 12px;
+}
+
+.transcript-toggle-row {
+  justify-content: flex-start;
 }
 
 .primary-button,
@@ -322,9 +345,19 @@ select {
   background-repeat: no-repeat;
 }
 
+.text-form {
+  display: grid;
+  gap: 10px;
+}
+
+.text-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 108px;
 }
 
 .hint-box {
@@ -393,14 +426,19 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .hero {
+  .brand-logo {
+    width: 72px;
+    height: 72px;
+  }
+
+  .session-headline {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .brand-logo {
-    width: 72px;
-    height: 72px;
+  .session-header-right {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .camera-frame {

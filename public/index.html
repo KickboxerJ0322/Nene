@@ -14,31 +14,21 @@
           <img class="brand-logo" src="/nene-logo.png" alt="Nene logo" />
           <h1>Nene</h1>
         </div>
-        <div class="hero-status">
-          <span id="statusDot" class="status-dot idle"></span>
-          <span id="statusText">未接続</span>
-        </div>
       </header>
 
       <main class="grid">
-        <section class="panel camera-panel">
-          <div class="panel-head">
-            <h2>Camera</h2>
-            <span id="cameraStateBadge" class="badge">Camera Ready</span>
-          </div>
-          <div class="camera-frame">
-            <video id="cameraPreview" autoplay playsinline muted></video>
-            <div id="cameraFallback" class="camera-fallback">
-              <p>背面カメラを起動すると、ここにプレビューが表示されます。</p>
-            </div>
-          </div>
-          <canvas id="captureCanvas" hidden></canvas>
-        </section>
-
         <section class="panel control-panel">
           <div class="panel-head">
-            <h2>Session</h2>
-            <span id="modelBadge" class="badge">Gemini Live</span>
+            <div class="session-headline">
+              <h2>Session</h2>
+              <div class="session-header-right">
+                <div class="hero-status">
+                  <span id="statusDot" class="status-dot idle"></span>
+                  <span id="statusText">未接続</span>
+                </div>
+                <span id="modelBadge" class="badge">Gemini Live</span>
+              </div>
+            </div>
           </div>
 
           <div class="button-row">
@@ -57,7 +47,7 @@
             <label class="toggle-card" for="cameraEnabled">
               <span>カメラを使う</span>
               <span class="ios-switch">
-                <input id="cameraEnabled" type="checkbox" checked />
+                <input id="cameraEnabled" type="checkbox" />
                 <span class="ios-slider"></span>
               </span>
             </label>
@@ -84,8 +74,14 @@
                 placeholder="例: 目の前にある物を説明して"
               ></textarea>
             </label>
-            <button class="ghost-button" type="submit">送信</button>
+            <div class="text-form-actions">
+              <button class="ghost-button" type="submit">送信</button>
+            </div>
           </form>
+
+          <div class="button-row transcript-toggle-row">
+            <button id="transcriptToggle" class="ghost-button" type="button">Transcriptを表示</button>
+          </div>
 
           <div class="hint-box">
             <p>使い方</p>
@@ -95,7 +91,21 @@
           </div>
         </section>
 
-        <section class="panel transcript-panel">
+        <section class="panel camera-panel">
+          <div class="panel-head">
+            <h2>Camera</h2>
+            <span id="cameraStateBadge" class="badge">Camera Off</span>
+          </div>
+          <div class="camera-frame">
+            <video id="cameraPreview" autoplay playsinline muted></video>
+            <div id="cameraFallback" class="camera-fallback">
+              <p>背面カメラを起動すると、ここにプレビューが表示されます。</p>
+            </div>
+          </div>
+          <canvas id="captureCanvas" hidden></canvas>
+        </section>
+
+        <section id="transcriptPanel" class="panel transcript-panel is-hidden">
           <div class="panel-head">
             <h2>Transcript</h2>
             <span id="tokenCounter" class="badge">Tokens: -</span>

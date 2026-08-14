@@ -1,34 +1,34 @@
 const VOICE_OPTIONS = [
-  ["Kore", "Kore - Firm"],
-  ["Puck", "Puck - Upbeat"],
-  ["Zephyr", "Zephyr - Bright"],
-  ["Charon", "Charon - Informative"],
-  ["Fenrir", "Fenrir - Excitable"],
-  ["Leda", "Leda - Youthful"],
-  ["Orus", "Orus - Firm"],
-  ["Aoede", "Aoede - Breezy"],
-  ["Callirrhoe", "Callirrhoe - Easy-going"],
-  ["Autonoe", "Autonoe - Bright"],
-  ["Enceladus", "Enceladus - Breathy"],
-  ["Iapetus", "Iapetus - Clear"],
-  ["Umbriel", "Umbriel - Easy-going"],
-  ["Algieba", "Algieba - Smooth"],
-  ["Despina", "Despina - Smooth"],
-  ["Erinome", "Erinome - Clear"],
-  ["Algenib", "Algenib - Gravelly"],
-  ["Rasalgethi", "Rasalgethi - Informative"],
-  ["Laomedeia", "Laomedeia - Upbeat"],
-  ["Achernar", "Achernar - Soft"],
-  ["Alnilam", "Alnilam - Firm"],
-  ["Schedar", "Schedar - Even"],
-  ["Gacrux", "Gacrux - Mature"],
-  ["Pulcherrima", "Pulcherrima - Forward"],
-  ["Achird", "Achird - Friendly"],
-  ["Zubenelgenubi", "Zubenelgenubi - Casual"],
-  ["Vindemiatrix", "Vindemiatrix - Gentle"],
-  ["Sadachbia", "Sadachbia - Lively"],
-  ["Sadaltager", "Sadaltager - Knowledgeable"],
-  ["Sulafat", "Sulafat - Warm"],
+  ["Kore", "コレー - しっかり"],
+  ["Puck", "パック - 元気"],
+  ["Zephyr", "ゼファー - 明るい"],
+  ["Charon", "カロン - 説明上手"],
+  ["Fenrir", "フェンリル - いきいき"],
+  ["Leda", "レダ - 若々しい"],
+  ["Orus", "オルス - 落ち着き"],
+  ["Aoede", "アオエデ - 軽やか"],
+  ["Callirrhoe", "カリロエ - 親しみやすい"],
+  ["Autonoe", "アウトノエ - さわやか"],
+  ["Enceladus", "エンケラドゥス - 息づかい"],
+  ["Iapetus", "イアペトス - クリア"],
+  ["Umbriel", "アンブリエル - やわらかい"],
+  ["Algieba", "アルギエバ - なめらか"],
+  ["Despina", "デスピナ - 穏やか"],
+  ["Erinome", "エリノメ - はっきり"],
+  ["Algenib", "アルゲニブ - 低め"],
+  ["Rasalgethi", "ラサルゲティ - 案内向き"],
+  ["Laomedeia", "ラオメディア - 快活"],
+  ["Achernar", "アケルナル - やさしい"],
+  ["Alnilam", "アルニラム - 堂々"],
+  ["Schedar", "シェダル - 安定感"],
+  ["Gacrux", "ガクルックス - 大人っぽい"],
+  ["Pulcherrima", "プルケリマ - 前向き"],
+  ["Achird", "アキルド - フレンドリー"],
+  ["Zubenelgenubi", "ズベネルゲヌビ - カジュアル"],
+  ["Vindemiatrix", "ヴィンデミアトリクス - おだやか"],
+  ["Sadachbia", "サダクビア - にぎやか"],
+  ["Sadaltager", "サダルタゲル - 知的"],
+  ["Sulafat", "スラファト - あたたかい"],
 ];
 
 const state = {
@@ -46,6 +46,7 @@ const state = {
   activeSources: new Set(),
   cameraIntervalId: null,
   wakeLock: null,
+  transcriptVisible: false,
 };
 
 const elements = {
@@ -58,6 +59,8 @@ const elements = {
   textForm: document.querySelector("#textForm"),
   textInput: document.querySelector("#textInput"),
   transcriptList: document.querySelector("#transcriptList"),
+  transcriptPanel: document.querySelector("#transcriptPanel"),
+  transcriptToggle: document.querySelector("#transcriptToggle"),
   cameraPreview: document.querySelector("#cameraPreview"),
   cameraFallback: document.querySelector("#cameraFallback"),
   captureCanvas: document.querySelector("#captureCanvas"),
@@ -110,6 +113,11 @@ async function boot() {
     void sendTextMessage();
   });
 
+  elements.transcriptToggle.addEventListener("click", () => {
+    state.transcriptVisible = !state.transcriptVisible;
+    syncTranscriptPanel();
+  });
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && state.sessionLive) {
       void requestWakeLock();
@@ -117,6 +125,7 @@ async function boot() {
   });
 
   syncCameraStateBadge();
+  syncTranscriptPanel();
 }
 
 function buildVoiceOptions(defaultVoiceName) {
@@ -132,7 +141,7 @@ function buildVoiceOptions(defaultVoiceName) {
   if (!VOICE_OPTIONS.some(([value]) => value === defaultVoiceName)) {
     const option = document.createElement("option");
     option.value = defaultVoiceName;
-    option.textContent = `${defaultVoiceName} - Custom`;
+    option.textContent = `${defaultVoiceName} - カスタム`;
     elements.voiceName.prepend(option);
   }
 
@@ -519,6 +528,13 @@ function setStatus(text, tone) {
 
 function syncCameraStateBadge() {
   elements.cameraStateBadge.textContent = elements.cameraEnabled.checked ? "Camera On" : "Camera Off";
+}
+
+function syncTranscriptPanel() {
+  elements.transcriptPanel.classList.toggle("is-hidden", !state.transcriptVisible);
+  elements.transcriptToggle.textContent = state.transcriptVisible
+    ? "Transcriptを非表示"
+    : "Transcriptを表示";
 }
 
 async function requestWakeLock() {
