@@ -53,6 +53,7 @@ const elements = {
   connectButton: document.querySelector("#connectButton"),
   disconnectButton: document.querySelector("#disconnectButton"),
   cameraEnabled: document.querySelector("#cameraEnabled"),
+  cameraFacingMode: document.querySelector("#cameraFacingMode"),
   micEnabled: document.querySelector("#micEnabled"),
   searchEnabled: document.querySelector("#searchEnabled"),
   voiceName: document.querySelector("#voiceName"),
@@ -83,6 +84,7 @@ async function boot() {
   buildVoiceOptions(state.config.defaultVoiceName || "Kore");
   elements.searchEnabled.checked = state.config.defaultGoogleSearch ?? true;
   elements.modelBadge.textContent = state.config.model || "Gemini Live";
+  elements.cameraFacingMode.value = "user";
 
   if (!state.config.hasGeminiKey) {
     appendMessage("system", "`.env` に `GEMINI_API_KEY` を入れると音声会話を開始できます。");
@@ -102,6 +104,10 @@ async function boot() {
   elements.cameraEnabled.addEventListener("change", () => {
     syncCameraStateBadge();
     void applyCameraState();
+  });
+
+  elements.cameraFacingMode.addEventListener("change", () => {
+    void handleCameraFacingModeChange();
   });
 
   elements.micEnabled.addEventListener("change", () => {
@@ -272,6 +278,17 @@ async function applyCameraState() {
   }
 }
 
+async function handleCameraFacingModeChange() {
+  if (!state.cameraStream) {
+    return;
+  }
+
+  stopCamera();
+  if (elements.cameraEnabled.checked) {
+    await startCamera();
+  }
+}
+
 async function startCamera() {
   if (state.cameraStream) {
     syncCameraStateBadge();
@@ -281,7 +298,7 @@ async function startCamera() {
   try {
     state.cameraStream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: { ideal: "environment" },
+        facingMode: { ideal: elements.cameraFacingMode.value || "user" },
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },

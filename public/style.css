@@ -157,6 +157,10 @@ h1 {
   padding: 18px 18px 0;
 }
 
+.camera-select-stack {
+  margin: 16px 18px 0;
+}
+
 .camera-frame {
   position: relative;
   aspect-ratio: 4 / 5;
@@ -441,7 +445,13 @@ textarea {
     justify-content: flex-start;
   }
 
+  .camera-panel {
+    min-height: 0;
+    padding-bottom: 12px;
+  }
+
   .camera-frame {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 3 / 4;
+    margin-bottom: 0;
   }
 }

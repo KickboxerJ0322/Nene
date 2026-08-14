@@ -96,10 +96,17 @@
             <h2>Camera</h2>
             <span id="cameraStateBadge" class="badge">Camera Off</span>
           </div>
+          <label class="stack camera-select-stack">
+            <span>カメラの向き</span>
+            <select id="cameraFacingMode">
+              <option value="user">フロントカメラ</option>
+              <option value="environment">背面カメラ</option>
+            </select>
+          </label>
           <div class="camera-frame">
             <video id="cameraPreview" autoplay playsinline muted></video>
             <div id="cameraFallback" class="camera-fallback">
-              <p>背面カメラを起動すると、ここにプレビューが表示されます。</p>
+              <p>カメラを起動すると、ここにプレビューが表示されます。</p>
             </div>
           </div>
           <canvas id="captureCanvas" hidden></canvas>
