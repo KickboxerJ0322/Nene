@@ -61,6 +61,29 @@ select {
   height: 88px;
   object-fit: contain;
   filter: drop-shadow(0 10px 22px rgba(131, 64, 20, 0.18));
+  transform-origin: center;
+}
+
+.brand-logo.is-speaking {
+  animation: nene-speaking 0.9s ease-in-out infinite;
+}
+
+@keyframes nene-speaking {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.06);
+  }
+
+  70% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 h1,

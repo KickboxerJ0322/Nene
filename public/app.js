@@ -50,6 +50,7 @@ const state = {
 };
 
 const elements = {
+  brandLogo: document.querySelector(".brand-logo"),
   connectButton: document.querySelector("#connectButton"),
   disconnectButton: document.querySelector("#disconnectButton"),
   cameraEnabled: document.querySelector("#cameraEnabled"),
@@ -132,6 +133,7 @@ async function boot() {
 
   syncCameraStateBadge();
   syncTranscriptPanel();
+  syncBrandSpeakingState();
 }
 
 function buildVoiceOptions(defaultVoiceName) {
@@ -490,9 +492,11 @@ async function playModelAudio(base64Data, mimeType = "audio/pcm;rate=24000") {
   const startAt = Math.max(state.outputAudioContext.currentTime, state.playbackTime);
   state.playbackTime = startAt + audioBuffer.duration;
   state.activeSources.add(source);
+  syncBrandSpeakingState();
 
   source.onended = () => {
     state.activeSources.delete(source);
+    syncBrandSpeakingState();
   };
 
   source.start(startAt);
@@ -508,6 +512,7 @@ function clearPlaybackQueue() {
   }
 
   state.activeSources.clear();
+  syncBrandSpeakingState();
   if (state.outputAudioContext) {
     state.playbackTime = state.outputAudioContext.currentTime;
   } else {
@@ -552,6 +557,10 @@ function syncTranscriptPanel() {
   elements.transcriptToggle.textContent = state.transcriptVisible
     ? "Transcriptを非表示"
     : "Transcriptを表示";
+}
+
+function syncBrandSpeakingState() {
+  elements.brandLogo?.classList.toggle("is-speaking", state.activeSources.size > 0);
 }
 
 async function requestWakeLock() {
