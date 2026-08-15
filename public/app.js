@@ -9,7 +9,7 @@ const VOICE_OPTIONS = [
   ["Aoede", "\u30a2\u30aa\u30a8\u30c7 - \u8efd\u3084\u304b"],
   ["Callirrhoe", "\u30ab\u30ea\u30ed\u30a8 - \u89aa\u3057\u307f\u3084\u3059\u3044"],
   ["Autonoe", "\u30a2\u30a6\u30c8\u30ce\u30a8 - \u3055\u308f\u3084\u304b"],
-  ["Enceladus", "\u30a8\u30f3\u30b1\u30e9\u30c9\u30a5\u30b9 - \u606f\u3065\u304b\u3044"],
+  ["Enceladus", "\u30a8\u30f3\u30b1\u30e9\u30c9\u30a5\u30b9 - \u6c17\u3065\u304b\u3044"],
   ["Iapetus", "\u30a4\u30a2\u30da\u30c8\u30b9 - \u30af\u30ea\u30a2"],
   ["Umbriel", "\u30a2\u30f3\u30d6\u30ea\u30a8\u30eb - \u3084\u308f\u3089\u304b\u3044"],
   ["Algieba", "\u30a2\u30eb\u30ae\u30a8\u30d0 - \u306a\u3081\u3089\u304b"],
@@ -31,6 +31,9 @@ const VOICE_OPTIONS = [
   ["Sulafat", "\u30b9\u30e9\u30d5\u30a1\u30c8 - \u3042\u305f\u305f\u304b\u3044"],
 ];
 
+const LOGO_POWER_ON_MS = 480;
+const LOGO_POWER_OFF_MS = 320;
+
 const state = {
   socket: null,
   sessionLive: false,
@@ -47,10 +50,12 @@ const state = {
   cameraIntervalId: null,
   wakeLock: null,
   transcriptVisible: false,
+  settingsVisible: false,
+  logoVisible: false,
+  logoTimeoutId: null,
 };
 
 const elements = {
-  brandLogo: document.querySelector(".brand-logo"),
   connectButton: document.querySelector("#connectButton"),
   disconnectButton: document.querySelector("#disconnectButton"),
   cameraEnabled: document.querySelector("#cameraEnabled"),
@@ -63,6 +68,9 @@ const elements = {
   transcriptList: document.querySelector("#transcriptList"),
   transcriptPanel: document.querySelector("#transcriptPanel"),
   transcriptToggle: document.querySelector("#transcriptToggle"),
+  settingsToggle: document.querySelector("#settingsToggle"),
+  settingsPanel: document.querySelector("#settingsPanel"),
+  sessionLogoStage: document.querySelector("#sessionLogoStage"),
   cameraPreview: document.querySelector("#cameraPreview"),
   cameraFallback: document.querySelector("#cameraFallback"),
   captureCanvas: document.querySelector("#captureCanvas"),
@@ -125,6 +133,11 @@ async function boot() {
     syncTranscriptPanel();
   });
 
+  elements.settingsToggle.addEventListener("click", () => {
+    state.settingsVisible = !state.settingsVisible;
+    syncSettingsPanel();
+  });
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && state.sessionLive) {
       void requestWakeLock();
@@ -133,7 +146,8 @@ async function boot() {
 
   syncCameraStateBadge();
   syncTranscriptPanel();
-  syncBrandSpeakingState();
+  syncSettingsPanel();
+  syncSessionLogoSpeakingState();
 }
 
 function buildVoiceOptions(defaultVoiceName) {
@@ -163,6 +177,7 @@ async function startSession() {
 
   setStatus("\u8d77\u52d5\u4e2d...", "idle");
   elements.connectButton.disabled = true;
+  powerOnSessionLogo();
 
   try {
     await ensureOutputAudioContext();
@@ -173,6 +188,7 @@ async function startSession() {
   } catch (error) {
     setStatus(`\u8d77\u52d5\u5931\u6557: ${error.message}`, "error");
     elements.connectButton.disabled = false;
+    powerOffSessionLogo();
   }
 }
 
@@ -183,9 +199,11 @@ function openSocket() {
 
   socket.addEventListener("open", () => {
     state.sessionLive = true;
+    state.logoVisible = true;
     setStatus("Nene\u306b\u63a5\u7d9a\u3057\u3066\u3044\u307e\u3059...", "idle");
     elements.disconnectButton.disabled = false;
     appendMessage("system", "Gemini Live \u30bb\u30c3\u30b7\u30e7\u30f3\u3092\u958b\u59cb\u3057\u3066\u3044\u307e\u3059\u3002");
+    setSessionLogoActive(true);
 
     sendSocketMessage({
       type: "start_session",
@@ -221,8 +239,6 @@ function handleServerMessage(payload) {
       upsertTranscript("user", payload.text);
       break;
     case "transcript_model":
-      upsertTranscript("model", payload.text);
-      break;
     case "model_text":
       upsertTranscript("model", payload.text);
       break;
@@ -257,6 +273,7 @@ async function stopSession(reason = "\u30bb\u30c3\u30b7\u30e7\u30f3\u3092\u7d42\
     state.socket.close();
   }
 
+  powerOffSessionLogo();
   await releaseWakeLock();
   clearPlaybackQueue();
   cleanupSocketState();
@@ -264,12 +281,22 @@ async function stopSession(reason = "\u30bb\u30c3\u30b7\u30e7\u30f3\u3092\u7d42\
 }
 
 function cleanupSocketState() {
+  const shouldPowerOffLogo =
+    elements.sessionLogoStage.classList.contains("is-visible") &&
+    !elements.sessionLogoStage.classList.contains("is-powering-off");
+
   state.bridgeReady = false;
   state.sessionLive = false;
   state.socket = null;
   elements.connectButton.disabled = false;
   elements.disconnectButton.disabled = true;
   setStatus("\u672a\u63a5\u7d9a", "idle");
+
+  if (shouldPowerOffLogo) {
+    powerOffSessionLogo();
+  } else {
+    syncSessionLogoSpeakingState();
+  }
 }
 
 async function applyCameraState() {
@@ -492,11 +519,11 @@ async function playModelAudio(base64Data, mimeType = "audio/pcm;rate=24000") {
   const startAt = Math.max(state.outputAudioContext.currentTime, state.playbackTime);
   state.playbackTime = startAt + audioBuffer.duration;
   state.activeSources.add(source);
-  syncBrandSpeakingState();
+  syncSessionLogoSpeakingState();
 
   source.onended = () => {
     state.activeSources.delete(source);
-    syncBrandSpeakingState();
+    syncSessionLogoSpeakingState();
   };
 
   source.start(startAt);
@@ -512,7 +539,8 @@ function clearPlaybackQueue() {
   }
 
   state.activeSources.clear();
-  syncBrandSpeakingState();
+  syncSessionLogoSpeakingState();
+
   if (state.outputAudioContext) {
     state.playbackTime = state.outputAudioContext.currentTime;
   } else {
@@ -558,8 +586,61 @@ function syncTranscriptPanel() {
     : "Transcript\u3092\u8868\u793a";
 }
 
-function syncBrandSpeakingState() {
-  elements.brandLogo?.classList.toggle("is-speaking", state.activeSources.size > 0);
+function syncSettingsPanel() {
+  elements.settingsPanel.classList.toggle("is-hidden", !state.settingsVisible);
+  elements.settingsToggle.setAttribute("aria-expanded", String(state.settingsVisible));
+  elements.settingsToggle.textContent = state.settingsVisible
+    ? "\u8a2d\u5b9a\u3092\u96a0\u3059"
+    : "\u8a2d\u5b9a\u3092\u8868\u793a";
+}
+
+function powerOnSessionLogo() {
+  clearLogoTimer();
+  state.logoVisible = true;
+  elements.sessionLogoStage.setAttribute("aria-hidden", "false");
+  elements.sessionLogoStage.classList.remove("is-powering-off");
+  elements.sessionLogoStage.classList.add("is-visible", "is-powering-on");
+
+  requestAnimationFrame(() => {
+    elements.sessionLogoStage.classList.add("is-active");
+  });
+
+  state.logoTimeoutId = window.setTimeout(() => {
+    elements.sessionLogoStage.classList.remove("is-powering-on");
+    syncSessionLogoSpeakingState();
+  }, LOGO_POWER_ON_MS);
+}
+
+function powerOffSessionLogo() {
+  clearLogoTimer();
+  state.logoVisible = false;
+  elements.sessionLogoStage.classList.remove("is-speaking", "is-powering-on", "is-active");
+  elements.sessionLogoStage.classList.add("is-visible", "is-powering-off");
+
+  state.logoTimeoutId = window.setTimeout(() => {
+    elements.sessionLogoStage.classList.remove("is-visible", "is-powering-off");
+    elements.sessionLogoStage.setAttribute("aria-hidden", "true");
+  }, LOGO_POWER_OFF_MS);
+}
+
+function setSessionLogoActive(isActive) {
+  state.logoVisible = isActive;
+  elements.sessionLogoStage.classList.toggle("is-visible", isActive);
+  elements.sessionLogoStage.classList.toggle("is-active", isActive);
+  elements.sessionLogoStage.setAttribute("aria-hidden", String(!isActive));
+  syncSessionLogoSpeakingState();
+}
+
+function syncSessionLogoSpeakingState() {
+  const isSpeaking = state.logoVisible && state.activeSources.size > 0;
+  elements.sessionLogoStage.classList.toggle("is-speaking", isSpeaking);
+}
+
+function clearLogoTimer() {
+  if (state.logoTimeoutId) {
+    clearTimeout(state.logoTimeoutId);
+    state.logoTimeoutId = null;
+  }
 }
 
 async function requestWakeLock() {

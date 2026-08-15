@@ -36,6 +36,13 @@
             <button id="disconnectButton" class="secondary-button" type="button" disabled>終了</button>
           </div>
 
+          <div id="sessionLogoStage" class="session-logo-stage" aria-hidden="true">
+            <div class="session-logo-screen">
+              <div class="session-logo-glow"></div>
+              <img id="sessionLogoImage" class="session-logo-image" src="/nene-logo.png" alt="Nene logo" />
+            </div>
+          </div>
+
           <div class="toggle-grid">
             <label class="toggle-card" for="micEnabled">
               <span>マイクを使う</span>
@@ -60,34 +67,37 @@
             </label>
           </div>
 
-          <label class="stack">
-            <span>Voice</span>
-            <select id="voiceName"></select>
-          </label>
-
-          <form id="textForm" class="text-form">
-            <label class="stack">
-              <span>テキストでも話しかける</span>
-              <textarea
-                id="textInput"
-                rows="3"
-                placeholder="例: 目の前にある物を説明して"
-              ></textarea>
-            </label>
-            <div class="text-form-actions">
-              <button class="ghost-button" type="submit">送信</button>
-            </div>
-          </form>
-
           <div class="button-row transcript-toggle-row">
             <button id="transcriptToggle" class="ghost-button" type="button">Transcriptを表示</button>
+            <button id="settingsToggle" class="ghost-button" type="button" aria-expanded="false">設定を表示</button>
           </div>
 
-          <div class="hint-box">
-            <p>使い方</p>
-            <p>1. `Neneを起動` を押す</p>
-            <p>2. カメラとマイクの許可を出す</p>
-            <p>3. そのまま話しかける</p>
+          <div id="settingsPanel" class="settings-panel is-hidden">
+            <label class="stack">
+              <span>Voice</span>
+              <select id="voiceName"></select>
+            </label>
+
+            <form id="textForm" class="text-form">
+              <label class="stack">
+                <span>テキストでも話しかける</span>
+                <textarea
+                  id="textInput"
+                  rows="3"
+                  placeholder="例: 目の前にある物を説明して"
+                ></textarea>
+              </label>
+              <div class="text-form-actions">
+                <button class="ghost-button" type="submit">送信</button>
+              </div>
+            </form>
+
+            <div class="hint-box">
+              <p>使い方</p>
+              <p>1. `Neneを起動` を押す</p>
+              <p>2. カメラとマイクの許可を出す</p>
+              <p>3. そのまま話しかける</p>
+            </div>
           </div>
         </section>
 

@@ -37,6 +37,12 @@ select {
   font: inherit;
 }
 
+h1,
+h2,
+p {
+  margin: 0;
+}
+
 .shell {
   width: min(1180px, calc(100% - 24px));
   margin: 0 auto;
@@ -50,16 +56,12 @@ select {
   position: sticky;
   top: 0;
   z-index: 20;
-  margin-bottom: 12px;
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
+  margin-bottom: 12px;
   padding: 6px 20px;
-  border-top: 0;
-  border-left: 0;
-  border-right: 0;
   border-bottom: 1px solid rgba(255, 235, 230, 0.22);
-  border-radius: 0;
   background: linear-gradient(180deg, rgba(139, 42, 37, 0.96), rgba(112, 30, 28, 0.96));
   box-shadow: 0 10px 24px rgba(91, 24, 21, 0.24);
   backdrop-filter: blur(18px);
@@ -76,35 +78,6 @@ select {
   height: 28px;
   object-fit: contain;
   filter: drop-shadow(0 4px 10px rgba(47, 11, 10, 0.24));
-  transform-origin: center;
-}
-
-.brand-logo.is-speaking {
-  animation: nene-speaking 0.9s ease-in-out infinite;
-}
-
-@keyframes nene-speaking {
-  0% {
-    transform: scale(1);
-  }
-
-  35% {
-    transform: scale(1.06);
-  }
-
-  70% {
-    transform: scale(0.98);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-h1,
-h2,
-p {
-  margin: 0;
 }
 
 h1 {
@@ -118,6 +91,46 @@ h1 {
 h2 {
   font-size: 2rem;
   line-height: 1.1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.2fr;
+  gap: 18px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.control-panel,
+.camera-panel {
+  min-height: 420px;
+}
+
+.control-panel {
+  padding-bottom: 18px;
+}
+
+.transcript-panel {
+  grid-column: 1 / -1;
+}
+
+.transcript-panel.is-hidden,
+.settings-panel.is-hidden {
+  display: none;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 0;
 }
 
 .session-headline {
@@ -167,87 +180,25 @@ h2 {
   background: var(--danger);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: 0.9fr 1.2fr;
-  gap: 18px;
-}
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(12px);
-}
-
-.camera-panel,
-.control-panel {
-  min-height: 420px;
-}
-
-.transcript-panel {
-  grid-column: 1 / -1;
-}
-
-.transcript-panel.is-hidden {
-  display: none;
-}
-
-.panel-head {
-  display: flex;
-  justify-content: space-between;
+.badge {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 18px 0;
-}
-
-.camera-select-stack {
-  margin: 16px 18px 0;
-}
-
-.camera-frame {
-  position: relative;
-  aspect-ratio: 4 / 5;
-  width: calc(100% - 24px);
-  margin: 12px;
-  border-radius: 22px;
-  overflow: hidden;
-  background:
-    linear-gradient(145deg, rgba(33, 27, 19, 0.92), rgba(67, 43, 19, 0.92));
-}
-
-#cameraPreview,
-.camera-fallback {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-#cameraPreview {
-  object-fit: cover;
-  display: none;
-}
-
-.camera-fallback {
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  text-align: center;
-  color: rgba(255, 247, 237, 0.9);
-  line-height: 1.7;
-}
-
-.control-panel {
-  padding-bottom: 18px;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.84rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .button-row,
 .toggle-grid,
 .stack,
 .text-form,
-.hint-box {
+.hint-box,
+.settings-panel,
+.session-logo-stage {
   margin: 16px 18px 0;
 }
 
@@ -258,6 +209,7 @@ h2 {
 
 .transcript-toggle-row {
   justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .primary-button,
@@ -300,6 +252,189 @@ h2 {
   background: transparent;
   color: var(--accent-dark);
   border: 1px solid rgba(166, 86, 34, 0.24);
+}
+
+.session-logo-stage {
+  min-height: 176px;
+  display: grid;
+  place-items: center;
+}
+
+.session-logo-screen {
+  position: relative;
+  width: min(100%, 300px);
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(89, 42, 18, 0.12);
+  background:
+    radial-gradient(circle at top, rgba(255, 201, 128, 0.22), transparent 48%),
+    linear-gradient(160deg, rgba(72, 44, 27, 0.9), rgba(28, 18, 12, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 34px rgba(80, 49, 23, 0.16);
+  opacity: 0;
+  transform: scaleY(0.04) scaleX(0.72);
+  filter: brightness(1.9) saturate(0.1) blur(2px);
+  transition: opacity 220ms ease;
+}
+
+.session-logo-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0,
+    rgba(255, 255, 255, 0.05) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.session-logo-glow {
+  position: absolute;
+  inset: 18% 22%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 164, 77, 0.24), transparent 68%);
+  filter: blur(16px);
+}
+
+.session-logo-image {
+  position: relative;
+  width: clamp(92px, 34%, 120px);
+  height: auto;
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(0.84);
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.24));
+}
+
+.session-logo-stage.is-visible .session-logo-screen,
+.session-logo-stage.is-active .session-logo-screen {
+  opacity: 1;
+}
+
+.session-logo-stage.is-active .session-logo-screen {
+  transform: scale(1);
+  filter: brightness(1) saturate(1) blur(0);
+}
+
+.session-logo-stage.is-active .session-logo-image {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 200ms ease 80ms, transform 280ms ease 80ms;
+}
+
+.session-logo-stage.is-powering-on .session-logo-screen {
+  animation: tv-power-on 480ms ease-out forwards;
+}
+
+.session-logo-stage.is-powering-on .session-logo-image {
+  animation: logo-boot 480ms ease-out forwards;
+}
+
+.session-logo-stage.is-powering-off .session-logo-screen {
+  animation: tv-power-off 320ms ease-in forwards;
+}
+
+.session-logo-stage.is-powering-off .session-logo-image {
+  animation: logo-shutdown 320ms ease-in forwards;
+}
+
+.session-logo-stage.is-speaking .session-logo-image {
+  animation: session-logo-speaking 0.9s ease-in-out infinite;
+}
+
+@keyframes tv-power-on {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.03) scaleX(0.42);
+    filter: brightness(2.6) saturate(0) blur(3px);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scaleY(0.08) scaleX(1);
+    filter: brightness(2.4) saturate(0.2) blur(1px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1) saturate(1) blur(0);
+  }
+}
+
+@keyframes tv-power-off {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1) saturate(1) blur(0);
+  }
+
+  55% {
+    opacity: 1;
+    transform: scaleY(0.08) scaleX(1);
+    filter: brightness(2.3) saturate(0.1) blur(1px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleY(0.02) scaleX(0.38);
+    filter: brightness(2.8) saturate(0) blur(3px);
+  }
+}
+
+@keyframes logo-boot {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes logo-shutdown {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes session-logo-speaking {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.09);
+  }
+
+  70% {
+    transform: scale(0.96);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .toggle-grid {
@@ -362,9 +497,21 @@ h2 {
   transform: translateX(20px);
 }
 
+.settings-panel {
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(120, 79, 46, 0.12);
+  background: linear-gradient(180deg, rgba(255, 251, 245, 0.66), rgba(255, 248, 239, 0.42));
+}
+
 .stack {
   display: grid;
   gap: 8px;
+}
+
+.stack + .text-form,
+.text-form + .hint-box {
+  margin-top: 16px;
 }
 
 .stack span {
@@ -424,6 +571,42 @@ textarea {
   font-weight: 700;
 }
 
+.camera-select-stack {
+  margin: 16px 18px 0;
+}
+
+.camera-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  width: calc(100% - 24px);
+  margin: 12px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(33, 27, 19, 0.92), rgba(67, 43, 19, 0.92));
+}
+
+#cameraPreview,
+.camera-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#cameraPreview {
+  object-fit: cover;
+  display: none;
+}
+
+.camera-fallback {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: rgba(255, 247, 237, 0.9);
+  line-height: 1.7;
+}
+
 .transcript-list {
   display: grid;
   gap: 12px;
@@ -458,22 +641,9 @@ textarea {
   color: #376f5a;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 0.84rem;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.48);
-}
-
 @media (max-width: 900px) {
   .shell {
     width: min(1180px, calc(100% - 16px));
-    padding-top: 0;
   }
 
   .grid {
@@ -481,8 +651,8 @@ textarea {
   }
 
   .hero {
-    margin-bottom: 14px;
     padding: 6px 14px;
+    margin-bottom: 14px;
   }
 
   .brand-logo {
@@ -505,6 +675,22 @@ textarea {
     justify-content: flex-start;
   }
 
+  .session-logo-stage {
+    min-height: 148px;
+  }
+
+  .session-logo-screen {
+    width: 100%;
+  }
+
+  .button-row {
+    flex-wrap: wrap;
+  }
+
+  .button-row > * {
+    flex: 1 1 180px;
+  }
+
   .camera-panel {
     min-height: 0;
     padding-bottom: 12px;
@@ -515,6 +701,3 @@ textarea {
     margin-bottom: 0;
   }
 }
-
-
-
