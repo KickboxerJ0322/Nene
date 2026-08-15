@@ -267,14 +267,10 @@ h2 {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 22px;
-  border: 1px solid rgba(188, 146, 104, 0.16);
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255, 208, 128, 0.28), transparent 40%),
-    linear-gradient(180deg, rgba(255, 247, 235, 0.94), rgba(243, 228, 204, 0.9));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    0 10px 22px rgba(168, 120, 72, 0.14);
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   opacity: 0;
   transform: scaleY(0.04) scaleX(0.72);
   filter: brightness(1.9) saturate(0.1) blur(2px);
@@ -285,10 +281,8 @@ h2 {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.26), transparent 36%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 30%);
-  opacity: 0.72;
+  background: none;
+  opacity: 0;
   pointer-events: none;
 }
 
