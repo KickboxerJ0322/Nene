@@ -51,11 +51,17 @@ select {
   top: 0;
   z-index: 20;
   margin-bottom: 16px;
-  padding: 10px 14px;
-  border: 1px solid rgba(255, 250, 241, 0.72);
-  border-radius: 22px;
-  background: rgba(247, 241, 230, 0.84);
-  box-shadow: 0 14px 30px rgba(77, 52, 23, 0.12);
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 12px 24px;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 1px solid rgba(255, 235, 230, 0.22);
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(139, 42, 37, 0.96), rgba(112, 30, 28, 0.96));
+  box-shadow: 0 10px 24px rgba(91, 24, 21, 0.24);
   backdrop-filter: blur(18px);
 }
 
@@ -69,7 +75,7 @@ select {
   width: 40px;
   height: 40px;
   object-fit: contain;
-  filter: drop-shadow(0 6px 14px rgba(131, 64, 20, 0.16));
+  filter: drop-shadow(0 4px 10px rgba(47, 11, 10, 0.24));
   transform-origin: center;
 }
 
@@ -105,6 +111,8 @@ h1 {
   font-size: clamp(1.9rem, 3vw, 2.25rem);
   line-height: 1;
   letter-spacing: -0.04em;
+  color: #fff7f2;
+  text-shadow: 0 1px 2px rgba(60, 16, 14, 0.28);
 }
 
 h2 {
@@ -474,7 +482,7 @@ textarea {
 
   .hero {
     margin-bottom: 14px;
-    padding: 8px 12px;
+    padding: 10px 16px;
   }
 
   .brand-logo {
@@ -507,3 +515,5 @@ textarea {
     margin-bottom: 0;
   }
 }
+
+
