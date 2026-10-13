@@ -60,8 +60,30 @@ jobs:
           script = '''
           import { GoogleAuth } from 'google-auth-library';
           import { randomUUID } from 'node:crypto';
-          const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/datastore'] });
+          const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
           const client = await auth.getClient();
+          const databaseParent = 'https://firestore.googleapis.com/v1/projects/' + process.env.GOOGLE_CLOUD_PROJECT + '/databases';
+          try {
+            let database;
+            try {
+              database = (await client.request({ url: databaseParent + '/(default)', timeout: 10000, retry: false })).data;
+            } catch (error) {
+              if (error.response?.status !== 404) throw error;
+              const created = await client.request({ url: databaseParent, method: 'POST', params: { databaseId: '(default)' }, data: { locationId: 'asia-northeast1', type: 'FIRESTORE_NATIVE' }, timeout: 30000, retry: false });
+              let operation = created.data;
+              for (let attempt = 0; !operation.done && attempt < 100; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                operation = (await client.request({ url: 'https://firestore.googleapis.com/v1/' + operation.name, timeout: 10000, retry: false })).data;
+              }
+              if (!operation.done || operation.error) process.exit(45);
+              database = (await client.request({ url: databaseParent + '/(default)', timeout: 10000, retry: false })).data;
+            }
+            if (database.type !== 'FIRESTORE_NATIVE') process.exit(46);
+          } catch (error) {
+            const status = error.response?.status;
+            console.error('Database setup failed:', status, error.response?.data?.error?.message);
+            process.exit(status === 403 ? 43 : status === 404 ? 44 : 45);
+          }
           const base = 'https://firestore.googleapis.com/v1/projects/' + process.env.GOOGLE_CLOUD_PROJECT + '/databases/(default)/documents';
           const id = randomUUID();
           let verified = false;
@@ -108,7 +130,7 @@ jobs:
             check_execution=$(gcloud run jobs executions list --job="$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --limit=1 --format='value(metadata.name)')
             gcloud run jobs executions tasks list --execution="$check_execution" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > /tmp/nene-check-tasks.json
             jq '.[] | {name: .metadata.name, status: .status}' /tmp/nene-check-tasks.json
-            echo 'Exit code 43 means Firestore access denied; 44 means the database or requested resource was not found; 41 means authentication failed.'
+            echo 'Exit code 43 means Firestore access denied; 44 means a missing resource; 45 means database creation failed; 46 means an incompatible database mode; 41 means authentication failed.'
             exit 1
           fi
           echo '### Nene Firestore setup verified' >> "$GITHUB_STEP_SUMMARY"
