@@ -13,6 +13,9 @@ const DEFAULT_VOICE_NAME = process.env.VOICE_NAME || "Sulafat";
 const DEFAULT_GOOGLE_SEARCH = process.env.ENABLE_GOOGLE_SEARCH !== "false";
 
 const app = express();
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 app.use(express.static("public"));
 
 app.get("/api/config", (_req, res) => {
