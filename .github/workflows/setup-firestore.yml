@@ -49,20 +49,6 @@ jobs:
           echo "RUNTIME_IMAGE=$runtime_image" >> "$GITHUB_ENV"
           echo "Runtime account: $runtime_account"
 
-      - name: Enable Firestore and ensure a Native mode database
-        shell: bash
-        run: |
-          set -euo pipefail
-          gcloud firestore databases list --project="$GCP_PROJECT_ID" --format=json > /tmp/nene-databases.json
-          database_type=$(jq -r '.[] | select(.name | endswith("/databases/(default)")) | .type' /tmp/nene-databases.json)
-          if [[ -z "$database_type" ]]; then
-            gcloud firestore databases create --database='(default)' --location="$GCP_REGION" --type=firestore-native --project="$GCP_PROJECT_ID" --quiet
-          elif [[ "$database_type" != 'FIRESTORE_NATIVE' ]]; then
-            echo '::error::An existing default database uses another mode; no change was made to that database.'
-            exit 1
-          fi
-          gcloud firestore databases describe --database='(default)' --project="$GCP_PROJECT_ID" --format='value(name,type,locationId)'
-
       - name: Verify read and write using the runtime identity
         shell: bash
         run: |
@@ -79,7 +65,7 @@ jobs:
           const base = 'https://firestore.googleapis.com/v1/projects/' + process.env.GOOGLE_CLOUD_PROJECT + '/databases/(default)/documents';
           const id = randomUUID();
           let verified = false;
-          for (let attempt = 0; attempt < 30; attempt++) {
+          for (let attempt = 0; attempt < 3; attempt++) {
             try {
               await client.request({ url: base + '/nene_setup_checks', method: 'POST', params: { documentId: id }, data: { fields: { purpose: { stringValue: 'runtime-permission-check' } } }, timeout: 10000, retry: false });
               await client.request({ url: base + '/nene_setup_checks/' + id, method: 'GET', timeout: 10000, retry: false });
@@ -90,6 +76,7 @@ jobs:
             } catch (error) {
               const status = error.response?.status;
               console.error('Permission check status:', status ?? 'connection error');
+              console.error(error.response?.data?.error?.message ?? 'Firestore request failed');
               if (status === 409) {
                 await client.request({ url: base + '/nene_setup_checks/' + id, method: 'DELETE', timeout: 10000, retry: false });
               } else if (status !== 403) {
@@ -119,4 +106,4 @@ jobs:
           trap 'gcloud run jobs delete "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet || true' EXIT
           gcloud run jobs deploy "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --flags-file=/tmp/nene-check-flags.json --quiet
           echo '### Nene Firestore setup verified' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Native mode database and runtime access are ready. Daily usage slots were not consumed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Firestore runtime access is ready. Daily usage slots were not consumed.' >> "$GITHUB_STEP_SUMMARY"
