@@ -1,118 +1,127 @@
 # Nene
 
-Nene は、古いスマートフォンをカメラ付き会話AIに変えるためのリアルタイム Web アプリです。
-現在の構成は `Node.js + Express + WebSocket + Vanilla JavaScript` で、Gemini Live API をサーバー側から中継しています。
+**Nene（ネネ）は、スマートフォンのブラウザから、声で話しかけたり、カメラで見せたものについて質問したりできるAIアシスタントです。**
 
-## 現在の主な機能
+Google Cloud Run上で動作し、GoogleのGemini Live APIを使って、日本語で音声のやり取りを行います。利用者はアプリをインストールしたり、パソコンに開発環境を用意したりする必要はありません。公開されたURLをブラウザで開くだけで利用できます。
 
-- 音声会話のリアルタイム接続
-- ユーザー音声と Nene 音声の Transcript 表示
-- テキスト入力での会話
-- カメラ ON/OFF の切り替え
-- フロントカメラ / 背面カメラの切り替え
-- Google Search 利用の ON/OFF
-- Voice の選択
-- Nene が発声中に左上ロゴがアニメーション
-- スマホ表示を意識したシンプルな UI
-- Wake Lock による画面スリープ抑制
+古いAndroidスマートフォンを、カメラ付きの会話端末として活用することを目指しています。実際に利用できるかは、端末とブラウザが必要な音声・カメラ機能に対応しているかによります。
 
-## 現在の UI 仕様
+## できること
 
-- Session / Camera / Transcript の順で表示
-- Transcript はデフォルトで非表示
-- カメラはデフォルトで OFF
-- カメラの向きはデフォルトでフロントカメラ
-- Voice のデフォルトは `Sulafat`
-- ロゴとファビコンは `public/nene-logo.png`
+- **声で会話する**：話しかけると、Neneが音声で返答します。
+- **見せながら質問する**：カメラを有効にして、目の前の物や周囲の様子について質問できます。
+- **文字でも質問する**：設定画面から、文章を入力して送信できます。
+- **会話を文字で確認する**：自分の発言とNeneの返答を、会話の文字起こしで確認できます。
+- **検索を使う**：Google Searchを有効にすると、AIが必要に応じて検索を利用します。
+- **声を選ぶ**：設定画面でNeneの声を選択できます。
 
-## 技術構成
-
-- サーバー: `server.js`
-- フロントエンド: `public/index.html`, `public/style.css`, `public/app.js`
-- 音声・会話: Gemini Live API
-- 配備先: Google Cloud Run
-- 連携: GitHub push -> GitHub Actions -> Cloud Run deploy
-
-## ローカル起動
-
-1. 依存関係をインストールします。
-
-```bash
-npm install
-```
-
-2. `.env.example` をもとに `.env` を作成します。
-
-```env
-PORT=3000
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-3.1-flash-live-preview
-VOICE_NAME=Sulafat
-ENABLE_GOOGLE_SEARCH=true
-```
-
-3. 開発サーバーを起動します。
-
-```bash
-npm run dev
-```
-
-本番相当で試す場合は次でも起動できます。
-
-```bash
-npm start
-```
-
-4. ブラウザで `http://localhost:3000` を開きます。
+例えば、カメラで物を見せて「これは何に使うもの？」と聞いたり、声だけで日常の疑問を相談したりできます。Neneの起動・終了や発声に合わせて、画面のロゴも変化します。
 
 ## 使い方
 
-1. `Neneを起動` を押す
-2. 必要なら `マイクを使う` `カメラを使う` を切り替える
-3. スマホでは `カメラの向き` でフロント / 背面を選ぶ
-4. そのまま話しかける
-5. 必要ならテキスト入力でも話しかける
-6. Transcript を見たいときは `Transcriptを表示` を押す
+1. 運営者が案内するCloud Runの**HTTPSのURL**を、スマートフォンのブラウザで開きます。
+2. 「マイクを使う」「カメラを使う」を選びます。物を見せたい場合は、カメラをONにしてください。
+3. 「Neneを起動」を押し、ブラウザが求めるマイク・カメラの利用を許可します。
+4. 接続の準備ができたら、そのまま日本語で話しかけます。
+5. 利用を終えるときは「終了」を押します。
 
-## Cloud Run 運用メモ
+### 画面の見方
 
-このリポジトリは GitHub と Cloud Run を連携して運用しています。
-`main` ブランチへ push すると、GitHub Actions から Cloud Run へデプロイされます。
+| 画面・操作 | 内容 |
+| --- | --- |
+| Session | 会話の開始・終了、接続状態、マイク・カメラ・検索の設定 |
+| Camera | カメラのプレビューと、フロントカメラ／背面カメラの切り替え |
+| Transcriptを表示 | 会話の文字起こしを表示。もう一度押すと非表示 |
+| 設定を表示 | 声の選択と、文字で質問する入力欄を表示 |
+| Voice | Neneの声を選択 |
+| Tokens | APIから通知されたトークン数。利用料金そのものではありません |
 
-想定している設定:
+最初は**マイクON、カメラOFF、フロントカメラ選択**の状態です。文字起こしと設定画面は閉じています。現在の配備設定ではGoogle SearchはON、声は`Sulafat`です。
 
-- GitHub repository: `KickboxerJ0322/Nene`
-- Google Cloud project: `jumpeicloud`
-- Cloud Run service: `nene`
-- Region: `asia-northeast1`
+マイクとカメラは使用中も切り替えられます。**声やGoogle Searchの変更は、いったん「終了」してから起動し直すと反映されます。**
 
-## 環境変数
+対応ブラウザでは、会話中に画面がスリープしないようにする機能も利用します。ただし、端末やブラウザの制限により、画面が消えたり、別のアプリに移ると会話が中断したりする場合があります。
 
-- `GEMINI_API_KEY`: Gemini API キー
-- `GEMINI_MODEL`: 使用する Live API モデル名
-- `VOICE_NAME`: デフォルト voice 名。現在の既定値は `Sulafat`
-- `ENABLE_GOOGLE_SEARCH`: `true` なら Google Search を有効化
-- `PORT`: ローカル起動ポート
+## カメラと会話データについて
 
-## 確認コマンド
+カメラ映像は連続した動画としてではなく、**約1.5秒ごとの静止画**として送信します。そのため、速い動きや、撮影の間に起きた変化を捉えられない場合があります。
 
-```bash
-npm run check
-```
+音声・送信した画像・入力した文章は、Cloud Runの中継サーバーを通じてGemini Live APIへ送られます。このアプリには、会話履歴や画像をデータベースへ保存する機能はありません。画面の文字起こしは、ページを再読み込みすると失われます。Google側でのデータの取り扱いは、利用するAPIの規約と設定を確認してください。
 
-`server.js` と `public/app.js` の構文チェックを行います。
+AIの返答や文字起こしには誤りが含まれることがあります。カメラによる説明は補助として利用し、常時監視や危険の自動検知を行うサービスとしては利用しないでください。
 
-## 主なファイル
+## クラウド上の仕組み
 
-- `server.js`: Gemini Live API との中継サーバー
-- `public/index.html`: UI のマークアップ
-- `public/style.css`: レイアウトとデザイン
-- `public/app.js`: カメラ、音声入出力、UI 制御
-- `.github/workflows/deploy-cloud-run.yml`: Cloud Run 自動デプロイ設定
+スマートフォンは音声の録音・再生とカメラの撮影を担当し、AIとの接続はクラウド側が担当します。
 
-## 注意点
+| 構成 | 役割 |
+| --- | --- |
+| ブラウザ | 画面表示、マイク入力、画像の送信、AI音声の再生 |
+| Google Cloud Run | Web画面の配信と、ブラウザ・AI間の通信の中継 |
+| Gemini Live API | 音声・画像・文章を受け取り、会話の返答を生成 |
+| Google Search | 有効な場合に、AIが必要に応じて情報を検索 |
+| Secret Manager | Gemini APIキーをクラウド側で管理 |
+| GitHub Actions / Artifact Registry | コードから実行用イメージを作成・保管し、Cloud Runへ配備 |
 
-- Gemini Live API は仕様変更される可能性があります。
-- モバイルブラウザではカメラ / マイク利用時に HTTPS が必要になる場合があります。
-- 古い端末では、カメラ ON と音声会話を同時に使うと負荷が上がることがあります。
-- 現在の映像送信は連続動画ではなく、一定間隔の JPEG フレーム送信です。
+ブラウザと中継サーバーはWebSocketという継続的な通信方式で接続します。Gemini APIキーをブラウザへ渡す構成にはしていません。
+
+## 運営者向け：配備と更新
+
+このリポジトリは、**GitHubの`main`ブランチへの更新をきっかけに、Cloud Runへ自動配備する構成**です。
+
+初回の環境準備では、Google Cloudのサービス、Artifact Registry、Secret Manager、GitHubからGoogle Cloudへ接続するための認証と権限を設定します。手順は[DEPLOYMENT.md](DEPLOYMENT.md)を参照してください。
+
+現在のワークフローの配備先は以下のとおりです。別の環境で運用する場合は、ワークフロー内の設定を変更してください。
+
+| 設定 | 現在の値 |
+| --- | --- |
+| Google Cloudプロジェクト | `jumpeicloud` |
+| リージョン | `asia-northeast1`（東京） |
+| Cloud Runサービス | `nene` |
+| Artifact Registryリポジトリ | `nene` |
+| GitHub Actionsの認証用Secrets | `GCP_WORKLOAD_IDENTITY_PROVIDER`、`GCP_SERVICE_ACCOUNT` |
+| Secret ManagerのAPIキー | `GEMINI_API_KEY`の最新バージョン |
+
+配備の結果とサービスURLは、GitHubの「Actions」から確認できます。更新が画面に反映されない場合は、配備の成功を確認してからブラウザを再読み込みしてください。
+
+### サーバー設定
+
+| 設定名 | 内容 | 現在の値・設定方法 |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | Geminiとの接続に必要なAPIキー | Secret Managerから取得 |
+| `GEMINI_MODEL` | 使用する会話モデル | `gemini-3.1-flash-live-preview` |
+| `VOICE_NAME` | 最初に選択する声 | `Sulafat` |
+| `ENABLE_GOOGLE_SEARCH` | 検索の初期状態 | `true`。`false`で初期OFF |
+| `PORT` | サーバーの待受ポート | Dockerイメージでは`8080`。Cloud Runの指定に従う |
+
+コンテナは非rootユーザーで実行します。`/healthz`はサーバーの応答を確認するためのURLで、Geminiとの接続状態までは検査しません。Dockerの`HEALTHCHECK`もこのURLを利用します。Cloud Runでのヘルスプローブは、Dockerの設定とは別に管理します。
+
+### 費用とアクセス管理
+
+Cloud Run、Gemini Live APIなどの利用には、利用量に応じた費用が発生する場合があります。利用者がブラウザを閉じても、費用が必ずゼロになるという意味ではありません。
+
+現在のアプリには、利用者のログイン、利用回数の制限、料金上限を管理する機能はありません。公開範囲に応じて、Cloud Run側のアクセス制御と、クラウド・API側の利用量や予算の確認を行ってください。
+
+## うまく動かないとき
+
+| 状況 | 確認すること |
+| --- | --- |
+| マイクやカメラを使えない | HTTPSで開いているか、ブラウザと端末の利用許可が有効かを確認 |
+| カメラをONにしても映らない | 他のアプリがカメラを使用していないか確認し、カメラの向きを切り替える |
+| APIキー未設定と表示される | 運営者がCloud RunとSecret Managerの設定を確認。利用者側のキー入力は不要 |
+| 接続やAIの応答でエラーになる | 通信状態を確認。運営者はCloud Runのログと、APIキー・モデルの利用可否を確認 |
+| 古い端末で動作が重い | カメラをOFFにして音声だけで試す |
+| 声や検索設定が変わらない | 「終了」してから、設定を選び直して「Neneを起動」を押す |
+
+## 開発用のファイル
+
+| ファイル | 内容 |
+| --- | --- |
+| `server.js` | Web画面の配信、Gemini Live APIの中継、ヘルスチェック |
+| `public/index.html` | 画面と操作ボタン |
+| `public/style.css` | 見た目、スマートフォン向けレイアウト、ロゴの演出 |
+| `public/app.js` | 音声・カメラ・文字起こし・画面操作の処理 |
+| `Dockerfile` | Cloud Runで動かす実行環境 |
+| `.github/workflows/deploy-cloud-run.yml` | 自動配備の設定 |
+
+コードの構文確認は`npm run check`で行えます。依存ライブラリは`npm ci`でインストールします。通常の利用者がこれらのコマンドを実行する必要はありません。
