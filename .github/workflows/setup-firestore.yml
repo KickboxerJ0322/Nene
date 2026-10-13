@@ -101,7 +101,7 @@ jobs:
             'wait': True,
           }
           with open('/tmp/nene-check-flags.json', 'w') as f:
-            json.dump(flags, f)
+            json.dump({'--' + key: value for key, value in flags.items()}, f)
           PY
           trap 'gcloud run jobs delete "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet || true' EXIT
           gcloud run jobs deploy "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --flags-file=/tmp/nene-check-flags.json --quiet
