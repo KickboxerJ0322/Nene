@@ -53,8 +53,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gcloud services enable serviceusage.googleapis.com --project="$GCP_PROJECT_ID" --quiet
-          gcloud services enable firestore.googleapis.com --project="$GCP_PROJECT_ID" --quiet
           gcloud firestore databases list --project="$GCP_PROJECT_ID" --format=json > /tmp/nene-databases.json
           database_type=$(jq -r '.[] | select(.name | endswith("/databases/(default)")) | .type' /tmp/nene-databases.json)
           if [[ -z "$database_type" ]]; then
@@ -64,13 +62,6 @@ jobs:
             exit 1
           fi
           gcloud firestore databases describe --database='(default)' --project="$GCP_PROJECT_ID" --format='value(name,type,locationId)'
-
-      - name: Grant Firestore access to the existing runtime account
-        shell: bash
-        run: |
-          set -euo pipefail
-          gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$RUNTIME_ACCOUNT" --role=roles/datastore.user --condition=None --quiet --format=none
-          echo 'Granted roles/datastore.user to the Nene runtime account.'
 
       - name: Verify read and write using the runtime identity
         shell: bash
