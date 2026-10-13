@@ -80,12 +80,12 @@ jobs:
               if (status === 409) {
                 await client.request({ url: base + '/nene_setup_checks/' + id, method: 'DELETE', timeout: 10000, retry: false });
               } else if (status !== 403) {
-                process.exit(1);
+                process.exit(status === 404 ? 44 : status === 401 ? 41 : 1);
               }
               await new Promise(resolve => setTimeout(resolve, 10000));
             }
           }
-          if (!verified) process.exit(1);
+          if (!verified) process.exit(43);
           '''
           flags = {
             'image': os.environ['RUNTIME_IMAGE'],
@@ -105,7 +105,10 @@ jobs:
           PY
           trap 'gcloud run jobs delete "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet || true' EXIT
           if ! gcloud run jobs deploy "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --flags-file=/tmp/nene-check-flags.json --quiet; then
-            gcloud logging read "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"$check_job\"" --project="$GCP_PROJECT_ID" --limit=20 --format='value(textPayload)' || true
+            check_execution=$(gcloud run jobs executions list --job="$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --limit=1 --format='value(metadata.name)')
+            gcloud run jobs executions tasks list --execution="$check_execution" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > /tmp/nene-check-tasks.json
+            jq '.[] | {name: .metadata.name, status: .status}' /tmp/nene-check-tasks.json
+            echo 'Exit code 43 means Firestore access denied; 44 means the database or requested resource was not found; 41 means authentication failed.'
             exit 1
           fi
           echo '### Nene Firestore setup verified' >> "$GITHUB_STEP_SUMMARY"
