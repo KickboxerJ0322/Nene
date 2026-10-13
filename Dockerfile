@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY public ./public
-COPY server.js ./
+COPY server.js usage-limit.js ./
 
 ENV NODE_ENV=production
 ENV PORT=8080

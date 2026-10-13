@@ -253,7 +253,7 @@ function handleServerMessage(payload) {
       elements.tokenCounter.textContent = `Tokens: ${payload.totalTokenCount}`;
       break;
     case "session_closed":
-      appendMessage("system", payload.reason || "\u30bb\u30c3\u30b7\u30e7\u30f3\u304c\u9589\u3058\u3089\u308c\u307e\u3057\u305f\u3002");
+      void stopSession(payload.reason || "セッションが終了しました。");
       break;
     case "server_error":
       appendMessage("system", payload.message);

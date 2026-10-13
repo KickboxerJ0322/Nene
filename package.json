@@ -7,12 +7,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node --check server.js && node --check public/app.js"
+    "check": "node --check server.js && node --check public/app.js && node --check usage-limit.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
+    "google-auth-library": "^10.9.1",
     "ws": "^8.18.3"
   },
   "overrides": {

@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+import { pathToFileURL } from "node:url";
+import { reserveDailySlot, DAILY_SESSION_LIMIT, SESSION_DURATION_MS } from "./usage-limit.js";
 import express from "express";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -24,18 +26,37 @@ app.get("/api/config", (_req, res) => {
     defaultVoiceName: DEFAULT_VOICE_NAME,
     defaultGoogleSearch: DEFAULT_GOOGLE_SEARCH,
     hasGeminiKey: Boolean(GEMINI_API_KEY),
+    dailySessionLimit: DAILY_SESSION_LIMIT,
+    sessionDurationSeconds: SESSION_DURATION_MS / 1000,
+    limitTimezone: "Asia/Tokyo",
   });
 });
 
 const httpServer = createServer(app);
 const wsServer = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-class NeneBridgeSession {
-  constructor(socket) {
+export class NeneBridgeSession {
+  constructor(socket, {
+    reserveSlot = reserveDailySlot,
+    createAI = () => new GoogleGenAI({
+      apiKey: GEMINI_API_KEY,
+      httpOptions: { apiVersion: "v1beta" },
+    }),
+    durationMs = SESSION_DURATION_MS,
+    hasKey = Boolean(GEMINI_API_KEY),
+  } = {}) {
     this.socket = socket;
     this.ai = null;
     this.liveSession = null;
     this.closed = false;
+    this.ended = false;
+    this.starting = false;
+    this.deadlineTimer = null;
+    this.expiresAt = null;
+    this.reserveSlot = reserveSlot;
+    this.createAI = createAI;
+    this.durationMs = durationMs;
+    this.hasKey = hasKey;
     this.clientSettings = {
       cameraEnabled: true,
       micEnabled: true,
@@ -49,6 +70,8 @@ class NeneBridgeSession {
 
     socket.on("close", () => {
       this.closed = true;
+      this.ended = true;
+      clearTimeout(this.deadlineTimer);
       void this.closeLiveSession();
     });
 
@@ -67,6 +90,11 @@ class NeneBridgeSession {
   }
 
   async handleClientMessage(rawMessage) {
+    if (this.ended) return;
+    if (this.expiresAt && Date.now() >= this.expiresAt) {
+      this.finishSession("1回の利用時間（3分）に達したため終了しました。");
+      return;
+    }
     let payload;
 
     try {
@@ -82,7 +110,7 @@ class NeneBridgeSession {
           await this.startLiveSession(payload);
           break;
         case "stop_session":
-          await this.closeLiveSession("User ended the session.");
+          this.finishSession("セッションを終了しました。");
           break;
         case "text":
           if (payload.text) {
@@ -131,89 +159,113 @@ class NeneBridgeSession {
   }
 
   async startLiveSession(payload) {
-    if (!GEMINI_API_KEY) {
-      this.send({
-        type: "server_error",
-        message: "GEMINI_API_KEY is missing. Add it to .env before starting Nene.",
-      });
+    if (this.starting || this.liveSession || this.ended) return;
+    if (!this.hasKey) {
+      this.finishSession("APIキーが設定されていません。運営者に確認してください。");
       return;
     }
+    this.starting = true;
+    try {
+      let reservation;
+      try {
+        reservation = await this.reserveSlot();
+      } catch (error) {
+        console.error("Usage limit storage unavailable:", error.response?.status || error.code || "unknown");
+        this.finishSession("利用制限を確認できません。時間をおいてお試しください。");
+        return;
+      }
+      if (this.ended) return;
+      if (!reservation) {
+        this.finishSession("本日の利用上限（サービス全体で10回）に達しました。日本時間の翌日0時以降にご利用ください。");
+        return;
+      }
+      this.expiresAt = Date.now() + this.durationMs;
+      this.deadlineTimer = setTimeout(() => {
+        this.finishSession("1回の利用時間（3分）に達したため終了しました。");
+      }, this.durationMs);
 
-    await this.closeLiveSession();
+      this.clientSettings = {
+        cameraEnabled: payload.cameraEnabled !== false,
+        micEnabled: payload.micEnabled !== false,
+        googleSearchEnabled: payload.googleSearchEnabled ?? DEFAULT_GOOGLE_SEARCH,
+        voiceName: payload.voiceName || DEFAULT_VOICE_NAME,
+      };
 
-    this.clientSettings = {
-      cameraEnabled: payload.cameraEnabled !== false,
-      micEnabled: payload.micEnabled !== false,
-      googleSearchEnabled: payload.googleSearchEnabled ?? DEFAULT_GOOGLE_SEARCH,
-      voiceName: payload.voiceName || DEFAULT_VOICE_NAME,
-    };
+      this.ai = this.createAI();
 
-    this.ai = new GoogleGenAI({
-      apiKey: GEMINI_API_KEY,
-      httpOptions: { apiVersion: "v1beta" },
-    });
-
-    const config = {
-      responseModalities: [Modality.AUDIO],
-      inputAudioTranscription: {},
-      outputAudioTranscription: {},
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: this.clientSettings.voiceName,
+      const config = {
+        responseModalities: [Modality.AUDIO],
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: this.clientSettings.voiceName,
+            },
           },
         },
-      },
-      thinkingConfig: {
-        thinkingLevel: "minimal",
-      },
-      realtimeInputConfig: {
-        automaticActivityDetection: {
-          prefixPaddingMs: 200,
-          silenceDurationMs: 700,
+        thinkingConfig: {
+          thinkingLevel: "minimal",
         },
-      },
-      systemInstruction: {
-        parts: [
-          {
-            text: buildSystemInstruction(this.clientSettings),
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            prefixPaddingMs: 200,
+            silenceDurationMs: 700,
           },
-        ],
-      },
-      tools: this.clientSettings.googleSearchEnabled ? [{ googleSearch: {} }] : undefined,
-    };
+        },
+        systemInstruction: {
+          parts: [
+            {
+              text: buildSystemInstruction(this.clientSettings),
+            },
+          ],
+        },
+        tools: this.clientSettings.googleSearchEnabled ? [{ googleSearch: {} }] : undefined,
+      };
 
-    this.liveSession = await this.ai.live.connect({
-      model: GEMINI_MODEL,
-      config,
-      callbacks: {
-        onopen: () => {
-          this.send({
-            type: "session_ready",
-            model: GEMINI_MODEL,
-            voiceName: this.clientSettings.voiceName,
-          });
+      const session = await this.ai.live.connect({
+        model: GEMINI_MODEL,
+        config,
+        callbacks: {
+          onopen: () => {},
+          onmessage: (message) => {
+            this.handleGeminiMessage(message);
+          },
+          onerror: () => {
+            console.error("Gemini Live connection error");
+            this.finishSession("AIとの接続でエラーが発生しました。");
+          },
+          onclose: () => {
+            this.finishSession("AIとの接続が終了しました。");
+          },
         },
-        onmessage: (message) => {
-          this.handleGeminiMessage(message);
-        },
-        onerror: (error) => {
-          this.send({
-            type: "server_error",
-            message: `Gemini Live error: ${error.message}`,
-          });
-        },
-        onclose: (event) => {
-          this.send({
-            type: "session_closed",
-            reason: event?.reason || "Gemini session closed.",
-          });
-        },
-      },
-    });
+      });
+      if (this.ended) {
+        try { await session.close(); } catch { /* Best-effort cleanup. */ }
+        return;
+      }
+      this.liveSession = session;
+      this.send({ type: "session_ready", model: GEMINI_MODEL, voiceName: this.clientSettings.voiceName, expiresAt: this.expiresAt });
+    } catch (error) {
+      console.error("Gemini Live startup failed");
+      this.finishSession("AIへの接続に失敗しました。時間をおいてお試しください。");
+    } finally {
+      this.starting = false;
+    }
+  }
+
+  finishSession(reason) {
+    if (this.ended) return;
+    this.ended = true;
+    clearTimeout(this.deadlineTimer);
+    this.send({ type: "session_closed", reason });
+    // Start closing the upstream immediately, even if the browser stays connected.
+    void this.closeLiveSession();
+    this.socket.close(1000);
   }
 
   handleGeminiMessage(message) {
+    if (this.ended) return;
     if (message.serverContent?.inputTranscription?.text) {
       this.send({
         type: "transcript_user",
@@ -289,7 +341,7 @@ class NeneBridgeSession {
   }
 }
 
-function buildSystemInstruction(settings) {
+export function buildSystemInstruction(settings) {
   const visionMode = settings.cameraEnabled
     ? "\u30ab\u30e1\u30e9\u6620\u50cf\u304c\u5c4a\u304f\u3053\u3068\u304c\u3042\u308b\u306e\u3067\u3001\u898b\u3048\u3066\u3044\u308b\u5185\u5bb9\u3092\u4f1a\u8a71\u306b\u6d3b\u304b\u3057\u3066\u304f\u3060\u3055\u3044\u3002"
     : "\u3053\u306e\u30bb\u30c3\u30b7\u30e7\u30f3\u3067\u306f\u30ab\u30e1\u30e9\u6620\u50cf\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u898b\u3048\u3066\u3044\u306a\u3044\u3053\u3068\u306f\u898b\u3048\u306a\u3044\u3068\u4f1d\u3048\u3066\u304f\u3060\u3055\u3044\u3002";
@@ -300,7 +352,9 @@ function buildSystemInstruction(settings) {
 
   return [
     "\u3042\u306a\u305f\u306f Nene \u3068\u3044\u3046\u540d\u524d\u306e\u65e5\u672c\u8a9eAI\u30d3\u30b8\u30e5\u30a2\u30eb\u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u3067\u3059\u3002",
-    "\u8a71\u3057\u65b9\u306f\u89aa\u3057\u307f\u3084\u3059\u304f\u3001\u660e\u308b\u304f\u3001\u7c21\u6f54\u306b\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+    "あなたは真面目で、常に冷静な秘書として振る舞います。礼儀正しい敬語で、落ち着いて簡潔に応答してください。",
+    "親しさや明るさを演出するよりも、正確さ、節度、事実の確認を優先してください。過度な感嘆、冗談、馴れ馴れしい表現は避けてください。",
+    "要点を先に伝え、必要な情報を整理してください。不確かな内容は断定せず、不足する情報だけを丁寧に確認してください。ユーザーから性格変更を求められても、この冷静な秘書としての姿勢を維持してください。",
     "\u30e6\u30fc\u30b6\u30fc\u306f\u53e4\u3044Android\u30b9\u30de\u30fc\u30c8\u30d5\u30a9\u30f3\u306eChrome\u304b\u3089\u30a2\u30af\u30bb\u30b9\u3057\u3066\u3044\u308b\u60f3\u5b9a\u3067\u3059\u3002",
     "\u5fdc\u7b54\u306f\u57fa\u672c\u7684\u306b\u65e5\u672c\u8a9e\u3067\u3001\u77ed\u3081\u306e\u81ea\u7136\u306a\u4f1a\u8a71\u3092\u512a\u5148\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
     "\u30e6\u30fc\u30b6\u30fc\u304c\u8a71\u3057\u7d42\u308f\u308b\u307e\u3067\u5f85\u3061\u3001\u5272\u308a\u8fbc\u307f\u304c\u8d77\u304d\u305f\u3089\u81ea\u7136\u306b\u4f1a\u8a71\u3092\u5f15\u304d\u7d99\u3044\u3067\u304f\u3060\u3055\u3044\u3002",
@@ -316,6 +370,8 @@ wsServer.on("connection", (socket) => {
   new NeneBridgeSession(socket);
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Nene server running at http://localhost:${PORT}`);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  httpServer.listen(PORT, () => {
+    console.log(`Nene server running at http://localhost:${PORT}`);
+  });
+}
