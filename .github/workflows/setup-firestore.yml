@@ -104,6 +104,9 @@ jobs:
             json.dump({'--' + key: value for key, value in flags.items()}, f)
           PY
           trap 'gcloud run jobs delete "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet || true' EXIT
-          gcloud run jobs deploy "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --flags-file=/tmp/nene-check-flags.json --quiet
+          if ! gcloud run jobs deploy "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --flags-file=/tmp/nene-check-flags.json --quiet; then
+            gcloud logging read "resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"$check_job\"" --project="$GCP_PROJECT_ID" --limit=20 --format='value(textPayload)' || true
+            exit 1
+          fi
           echo '### Nene Firestore setup verified' >> "$GITHUB_STEP_SUMMARY"
           echo 'Firestore runtime access is ready. Daily usage slots were not consumed.' >> "$GITHUB_STEP_SUMMARY"
