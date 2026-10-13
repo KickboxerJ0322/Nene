@@ -1,0 +1,127 @@
+name: Set up Nene Firestore
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/setup-firestore.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: nene-firestore-setup
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT_ID: jumpeicloud
+      GCP_REGION: asia-northeast1
+      CLOUD_RUN_SERVICE: nene
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Identify the existing Nene runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud run services describe "$CLOUD_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > /tmp/nene-service.json
+          runtime_account=$(jq -r '.spec.template.spec.serviceAccountName // empty' /tmp/nene-service.json)
+          runtime_image=$(jq -r '.spec.template.spec.containers[0].image // empty' /tmp/nene-service.json)
+          if [[ -z "$runtime_account" || -z "$runtime_image" ]]; then
+            echo '::error::Cannot identify the Cloud Run runtime account or image.'
+            exit 1
+          fi
+          echo "RUNTIME_ACCOUNT=$runtime_account" >> "$GITHUB_ENV"
+          echo "RUNTIME_IMAGE=$runtime_image" >> "$GITHUB_ENV"
+          echo "Runtime account: $runtime_account"
+
+      - name: Enable Firestore and ensure a Native mode database
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud services enable firestore.googleapis.com --project="$GCP_PROJECT_ID" --quiet
+          gcloud firestore databases list --project="$GCP_PROJECT_ID" --format=json > /tmp/nene-databases.json
+          database_type=$(jq -r '.[] | select(.name | endswith("/databases/(default)")) | .type' /tmp/nene-databases.json)
+          if [[ -z "$database_type" ]]; then
+            gcloud firestore databases create --database='(default)' --location="$GCP_REGION" --type=firestore-native --project="$GCP_PROJECT_ID" --quiet
+          elif [[ "$database_type" != 'FIRESTORE_NATIVE' ]]; then
+            echo '::error::An existing default database uses another mode; no change was made to that database.'
+            exit 1
+          fi
+          gcloud firestore databases describe --database='(default)' --project="$GCP_PROJECT_ID" --format='value(name,type,locationId)'
+
+      - name: Grant Firestore access to the existing runtime account
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$RUNTIME_ACCOUNT" --role=roles/datastore.user --condition=None --quiet --format=none
+          echo 'Granted roles/datastore.user to the Nene runtime account.'
+
+      - name: Verify read and write using the runtime identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_job="nene-firestore-check-$GITHUB_RUN_ID"
+          export CHECK_JOB="$check_job"
+          python3 - <<'PY'
+          import json, os
+          script = '''
+          import { GoogleAuth } from 'google-auth-library';
+          import { randomUUID } from 'node:crypto';
+          const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/datastore'] });
+          const client = await auth.getClient();
+          const base = 'https://firestore.googleapis.com/v1/projects/' + process.env.GOOGLE_CLOUD_PROJECT + '/databases/(default)/documents';
+          const id = randomUUID();
+          let verified = false;
+          for (let attempt = 0; attempt < 30; attempt++) {
+            try {
+              await client.request({ url: base + '/nene_setup_checks', method: 'POST', params: { documentId: id }, data: { fields: { purpose: { stringValue: 'runtime-permission-check' } } }, timeout: 10000, retry: false });
+              await client.request({ url: base + '/nene_setup_checks/' + id, method: 'GET', timeout: 10000, retry: false });
+              await client.request({ url: base + '/nene_setup_checks/' + id, method: 'DELETE', timeout: 10000, retry: false });
+              verified = true;
+              console.log('Firestore read/write/delete verified using the Nene runtime identity. No daily usage slot was consumed.');
+              break;
+            } catch (error) {
+              const status = error.response?.status;
+              console.error('Permission check status:', status ?? 'connection error');
+              if (status === 409) {
+                await client.request({ url: base + '/nene_setup_checks/' + id, method: 'DELETE', timeout: 10000, retry: false });
+              } else if (status !== 403) {
+                process.exit(1);
+              }
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+          }
+          if (!verified) process.exit(1);
+          '''
+          flags = {
+            'image': os.environ['RUNTIME_IMAGE'],
+            'service-account': os.environ['RUNTIME_ACCOUNT'],
+            'command': ['node'],
+            'args': ['--input-type=module', '-e', script],
+            'set-env-vars': 'GOOGLE_CLOUD_PROJECT=' + os.environ['GCP_PROJECT_ID'],
+            'task-timeout': '360s',
+            'tasks': 1,
+            'max-retries': 0,
+            'memory': '512Mi',
+            'execute-now': True,
+            'wait': True,
+          }
+          with open('/tmp/nene-check-flags.json', 'w') as f:
+            json.dump(flags, f)
+          PY
+          trap 'gcloud run jobs delete "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet || true' EXIT
+          gcloud run jobs deploy "$check_job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --flags-file=/tmp/nene-check-flags.json --quiet
+          echo '### Nene Firestore setup verified' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Native mode database and runtime access are ready. Daily usage slots were not consumed.' >> "$GITHUB_STEP_SUMMARY"
